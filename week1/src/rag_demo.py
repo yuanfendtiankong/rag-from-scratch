@@ -66,7 +66,7 @@ def select_best_sentences(query: str, top_chunks, max_sentences: int = 3):
 
 def generate_answer(query: str, top_chunks):
     """
-    根据检索到的 top chunks 生成一个简化版回答
+    根据检索到的 top chunks 生成一个格式更清晰的回答
 
     :param query: 用户问题
     :param top_chunks: 检索出的相关 chunks
@@ -75,24 +75,47 @@ def generate_answer(query: str, top_chunks):
     # 从 top chunks 中挑选最相关的句子
     best_sentences = select_best_sentences(query, top_chunks, max_sentences=3)
 
-    # 如果最相关句子的分数仍然是 0，说明没找到明显相关内容
+    # 如果没有找到有效句子，就直接返回提示信息
     if not best_sentences or best_sentences[0]["score"] == 0:
-        return "我无法从当前资料中找到足够相关的内容来回答这个问题。"
+        return "回答：\n我无法从当前资料中找到足够相关的内容来回答这个问题。"
 
+    # 用来保存去重后的句子
     answer_sentences = []
     used_sentences = set()
 
-    # 去重后拼接回答
     for item in best_sentences:
         sentence = item["sentence"]
+
+        # 去重，避免重复句子影响可读性
         if sentence not in used_sentences:
             used_sentences.add(sentence)
             answer_sentences.append(sentence)
 
-    # 用分号把多个关键句子拼起来
-    answer = "；".join(answer_sentences)
+    # 如果去重后没有句子，也给出提示
+    if not answer_sentences:
+        return "回答：\n我无法从当前资料中找到足够相关的内容来回答这个问题。"
 
-    return answer
+    # 第一部分：核心回答
+    main_answer = answer_sentences[0]
+
+    # 第二部分：依据说明
+    evidence_lines = []
+    for i, sentence in enumerate(answer_sentences, start=1):
+        evidence_lines.append(f"{i}. {sentence}")
+
+    evidence_text = "\n".join(evidence_lines)
+
+    # 第三部分：总结
+    summary = "以上回答基于当前知识库中的相关文本片段整理得到。"
+
+    # 拼成一个更清晰的回答格式
+    final_answer = (
+        f"回答：\n{main_answer}\n\n"
+        f"依据：\n{evidence_text}\n\n"
+        f"总结：\n{summary}"
+    )
+
+    return final_answer
 
 
 if __name__ == "__main__":
@@ -108,13 +131,16 @@ if __name__ == "__main__":
     # 再根据 top chunks 生成回答
     answer = generate_answer(query, top_results)
 
-    # 打印最终回答
-    print("\n===== 最终回答 =====")
+    # 打印格式化后的最终回答
+    print("\n===== 最终回答 =====\n")
     print(answer)
 
     # 打印参考依据，方便理解程序到底参考了哪些 chunk
     print("\n===== 参考 chunks =====\n")
-    for item in top_results:
-        print(f"chunk_id = {item['chunk_id']} | score = {item['score']}")
-        print(item["text"])
-        print()
+    if not top_results:
+        print("没有检索到相关 chunks。")
+    else:
+        for item in top_results:
+            print(f"chunk_id = {item['chunk_id']} | score = {item['score']}")
+            print(item["text"])
+            print()

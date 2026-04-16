@@ -73,6 +73,7 @@ def retrieve_top_k(query: str, chunks, k: int = 3):
     """
     scored_results = []
 
+    # 遍历每一个 chunk，计算它和 query 的相关性分数
     for item in chunks:
         score = score_chunk(query, item["text"])
 
@@ -85,7 +86,15 @@ def retrieve_top_k(query: str, chunks, k: int = 3):
     # 按 score 从高到低排序
     scored_results.sort(key=lambda x: x["score"], reverse=True)
 
-    # 返回前 k 个结果
+    # 过滤掉 score = 0 的结果
+    # 也就是说，如果某个 chunk 和问题没有任何明显相关性，就不返回它
+    filtered_results = []
+    for item in scored_results:
+        if item["score"] > 0:
+            filtered_results.append(item)
+
+    # 返回前 k 个非零分结果
+    return filtered_results[:k]
     return scored_results[:k]
 
 
