@@ -1,13 +1,18 @@
 from embedder import embed_text
 
 
-def score_chunk(query: str, chunk_text: str):
+def score_chunk(query, chunk_text):
     """
-    计算 query 和某个 chunk 的简化相关性分数。
+    计算查询文本与单个文本块之间的相关分数。
 
-    :param query: 用户问题
-    :param chunk_text: 某个 chunk 的文本
-    :return: 分数，分数越大表示越相关
+    当前分数定义为 query bigram 集合与 chunk bigram 集合的交集大小。
+
+    参数:
+        query: 用户问题。
+        chunk_text: 单个文本块内容。
+
+    返回:
+        int: 分数越高，说明相关性越强。
     """
     query_embedding = embed_text(query)
     chunk_embedding = embed_text(chunk_text)
@@ -15,14 +20,17 @@ def score_chunk(query: str, chunk_text: str):
     return len(overlap)
 
 
-def retrieve_top_k(query: str, chunks, k: int = 3):
+def retrieve_top_k(query, chunks, k=3):
     """
-    从所有 chunks 中找出与 query 最相关的 top-k 个。
+    从全部文本块中选出与问题最相关的前 k 个结果。
 
-    :param query: 用户输入的问题
-    :param chunks: chunk 列表
-    :param k: 返回前 k 个结果
-    :return: 按分数从高到低排序后的结果
+    参数:
+        query: 用户问题。
+        chunks: 文本块列表。
+        k: 返回结果数量。
+
+    返回:
+        list[dict]: 按分数从高到低排序后的检索结果。
     """
     scored_results = []
 
@@ -34,7 +42,7 @@ def retrieve_top_k(query: str, chunks, k: int = 3):
             "score": score
         })
 
-    scored_results.sort(key=lambda x: x["score"], reverse=True)
+    scored_results.sort(key=lambda item: item["score"], reverse=True)
 
     filtered_results = []
     for item in scored_results:

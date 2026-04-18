@@ -1,14 +1,17 @@
-from loader import load_text
-from chunker import simple_split_text
+from config import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE, RAW_KNOWLEDGE_PATH
+from pipeline import preview_chunks
 
 
 if __name__ == "__main__":
-    text = load_text("data/raw/knowledge.txt")
-    chunks = simple_split_text(text, chunk_size=80, chunk_overlap=30)
+    chunks = preview_chunks(
+        source_path=RAW_KNOWLEDGE_PATH,
+        chunk_size=DEFAULT_CHUNK_SIZE,
+        chunk_overlap=DEFAULT_CHUNK_OVERLAP,
+    )
 
-    print(f"一共切分出 {len(chunks)} 个 chunks\n")
+    print("一共切分出 {0} 个 chunks\n".format(len(chunks)))
 
-    for i, chunk in enumerate(chunks):
-        print(f"===== chunk {i + 1} =====")
+    for index, chunk in enumerate(chunks, start=1):
+        print("===== chunk {0} =====".format(index))
         print(chunk)
         print()

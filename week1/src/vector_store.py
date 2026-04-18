@@ -1,31 +1,39 @@
 import json
+from pathlib import Path
 
 
-def save_chunks_to_json(chunks, output_path: str):
+def save_chunks_to_json(chunks, output_path):
     """
-    把切分后的 chunks 保存到本地 json 文件中
+    将文本块保存为 JSON 文件，便于后续检索阶段直接加载。
 
-    :param chunks: 文本块列表
-    :param output_path: 输出文件路径
+    参数:
+        chunks: 文本块列表。
+        output_path: 输出文件路径。
     """
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
     data = []
-
-    for i, chunk in enumerate(chunks):
+    for index, chunk in enumerate(chunks, start=1):
         data.append({
-            "chunk_id": i + 1,
+            "chunk_id": index,
             "text": chunk
         })
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    output_file.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
 
 
-def load_chunks(json_path: str):
+def load_chunks(json_path):
     """
-    从本地 json 文件中读取 chunks
+    从本地 JSON 文件读取文本块数据。
 
-    :param json_path: chunks.json 的路径
-    :return: chunk 列表
+    参数:
+        json_path: 文本块 JSON 文件路径。
+
+    返回:
+        list[dict]: 每一项至少包含 chunk_id 和 text 字段。
     """
-    with open(json_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return json.loads(Path(json_path).read_text(encoding="utf-8"))

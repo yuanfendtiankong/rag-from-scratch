@@ -1,11 +1,18 @@
-from loader import load_text
-from chunker import simple_split_text
-from vector_store import save_chunks_to_json
+from config import (
+    DEFAULT_CHUNK_OVERLAP,
+    DEFAULT_CHUNK_SIZE,
+    PROCESSED_CHUNKS_PATH,
+    RAW_KNOWLEDGE_PATH,
+)
+from pipeline import build_and_save_chunks
 
 
 if __name__ == "__main__":
-    text = load_text("data/raw/knowledge.txt")
-    chunks = simple_split_text(text, chunk_size=100, chunk_overlap=20)
-    save_chunks_to_json(chunks, "data/processed/chunks.json")
+    chunks = build_and_save_chunks(
+        source_path=RAW_KNOWLEDGE_PATH,
+        output_path=PROCESSED_CHUNKS_PATH,
+        chunk_size=DEFAULT_CHUNK_SIZE,
+        chunk_overlap=DEFAULT_CHUNK_OVERLAP,
+    )
 
-    print(f"成功保存 {len(chunks)} 个 chunks 到 data/processed/chunks.json")
+    print("已生成 {0} 个 chunks，并保存到 {1}".format(len(chunks), PROCESSED_CHUNKS_PATH))

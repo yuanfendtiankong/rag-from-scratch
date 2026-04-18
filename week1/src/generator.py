@@ -4,12 +4,18 @@ import re
 from retriever import score_chunk
 
 
-def split_into_sentences(text: str):
-    """
-    把一段文本粗略切成句子
+NO_ANSWER_TEXT = "我无法从当前资料中找到足够相关的内容来回答这个问题。"
 
-    :param text: 输入文本
-    :return: 句子列表
+
+def split_into_sentences(text):
+    """
+    按中文常见标点将文本粗略切分为句子列表。
+
+    参数:
+        text: 原始文本。
+
+    返回:
+        list[str]: 去除空白后的句子列表。
     """
     sentences = re.split(r"[。！？；\n]", text)
 
@@ -22,14 +28,17 @@ def split_into_sentences(text: str):
     return cleaned_sentences
 
 
-def select_best_sentences(query: str, top_chunks, max_sentences: int = 3):
+def select_best_sentences(query, top_chunks, max_sentences=3):
     """
-    从检索到的 top chunks 中，进一步挑选最相关的句子
+    在已检索到的文本块中挑选最相关的句子，作为最终回答依据。
 
-    :param query: 用户问题
-    :param top_chunks: 已检索出的 top-k chunks
-    :param max_sentences: 最多保留多少句
-    :return: 最相关句子的列表
+    参数:
+        query: 用户问题。
+        top_chunks: 检索得到的文本块列表。
+        max_sentences: 最多返回多少个候选句子。
+
+    返回:
+        list[dict]: 包含 chunk_id、sentence、score 的候选句子列表。
     """
     candidate_sentences = []
 
@@ -46,22 +55,25 @@ def select_best_sentences(query: str, top_chunks, max_sentences: int = 3):
                 "score": score
             })
 
-    candidate_sentences.sort(key=lambda x: x["score"], reverse=True)
+    candidate_sentences.sort(key=lambda item: item["score"], reverse=True)
     return candidate_sentences[:max_sentences]
 
 
-def generate_answer(query: str, top_chunks):
+def generate_answer(query, top_chunks):
     """
-    根据检索到的 top chunks 生成一个格式更清晰的回答
+    根据检索结果生成一个结构清晰的规则式回答。
 
-    :param query: 用户问题
-    :param top_chunks: 检索出的相关 chunks
-    :return: 最终回答字符串
+    参数:
+        query: 用户问题。
+        top_chunks: 检索阶段返回的相关文本块。
+
+    返回:
+        str: 包含回答、依据和总结的最终字符串。
     """
     best_sentences = select_best_sentences(query, top_chunks, max_sentences=3)
 
     if not best_sentences or best_sentences[0]["score"] == 0:
-        return "回答：\n我无法从当前资料中找到足够相关的内容来回答这个问题。"
+        return "回答：\n{0}".format(NO_ANSWER_TEXT)
 
     answer_sentences = []
     used_sentences = set()
@@ -73,49 +85,56 @@ def generate_answer(query: str, top_chunks):
             answer_sentences.append(sentence)
 
     if not answer_sentences:
-        return "回答：\n我无法从当前资料中找到足够相关的内容来回答这个问题。"
+        return "回答：\n{0}".format(NO_ANSWER_TEXT)
 
     main_answer = answer_sentences[0]
     evidence_lines = []
-    for i, sentence in enumerate(answer_sentences, start=1):
-        evidence_lines.append(f"{i}. {sentence}")
+
+    for index, sentence in enumerate(answer_sentences, start=1):
+        evidence_lines.append("{0}. {1}".format(index, sentence))
 
     evidence_text = "\n".join(evidence_lines)
     summary = "以上回答基于当前知识库中的相关文本片段整理得到。"
 
     final_answer = (
-        f"回答：\n{main_answer}\n\n"
-        f"依据：\n{evidence_text}\n\n"
-        f"总结：\n{summary}"
-    )
+        "回答：\n{0}\n\n"
+        "依据：\n{1}\n\n"
+        "总结：\n{2}"
+    ).format(main_answer, evidence_text, summary)
     return final_answer
 
 
 def build_context(top_chunks):
     """
-    把检索到的 top-k chunks 拼接成上下文，供模型使用
+    将检索结果拼接为上下文文本，供大模型参考。
 
-    :param top_chunks: 检索结果列表
-    :return: 拼接后的上下文字符串
+    参数:
+        top_chunks: 检索到的文本块列表。
+
+    返回:
+        str: 拼接后的上下文内容。
     """
     context_parts = []
 
     for item in top_chunks:
         chunk_id = item["chunk_id"]
         chunk_text = item["text"]
-        context_parts.append(f"[chunk {chunk_id}]\n{chunk_text}")
+        context_parts.append("[chunk {0}]\n{1}".format(chunk_id, chunk_text))
 
     return "\n\n".join(context_parts)
 
 
-def should_refuse(top_chunks, min_top1_score: int = 2, min_total_score: int = 4):
+def should_refuse(top_chunks, min_top1_score=2, min_total_score=4):
     """
-    根据检索结果判断是否应该拒答
+    根据检索分数判断当前资料是否足以支撑回答。
 
-    :param top_chunks: 检索到的 chunks
-    :param min_top1_score: top1 的最低分阈值
-    :param min_total_score: top-k 总分的最低阈值
-    :return: True 表示应该拒答，False 表示可以继续生成
+    参数:
+        top_chunks: 检索到的文本块列表。
+        min_top1_score: top1 结果允许回答的最低分。
+        min_total_score: 全部结果允许回答的最低总分。
+
+    返回:
+        bool: True 表示应该拒答，False 表示可以继续生成回答。
     """
     if not top_chunks:
         return True
@@ -134,16 +153,19 @@ def should_refuse(top_chunks, min_top1_score: int = 2, min_total_score: int = 4)
     return False
 
 
-def generate_answer_with_newapi(query: str, top_chunks):
+def generate_answer_with_newapi(query, top_chunks):
     """
-    使用 New API 的 OpenAI 兼容接口生成回答
+    使用兼容 OpenAI 接口的 New API 生成最终回答。
 
-    :param query: 用户问题
-    :param top_chunks: 检索到的相关 chunks
-    :return: 模型生成的回答
+    参数:
+        query: 用户问题。
+        top_chunks: 检索到的相关文本块。
+
+    返回:
+        str: 模型生成的回答文本。
     """
     if should_refuse(top_chunks, min_top1_score=2, min_total_score=4):
-        return "我无法从当前资料中找到足够相关的内容来回答这个问题。"
+        return NO_ANSWER_TEXT
 
     from dotenv import load_dotenv
     from openai import OpenAI
@@ -151,11 +173,9 @@ def generate_answer_with_newapi(query: str, top_chunks):
     load_dotenv()
 
     context = build_context(top_chunks)
-
-    prompt = f"""
-你是一个问答助手。
-请严格根据下面提供的资料回答问题。
-请使用纯文本回答，不要使用 Markdown 格式，不要使用 ** 加粗符号。
+    prompt = """
+你是一个问答助手。请严格根据下面提供的资料回答问题。
+请使用纯文本回答，不要使用 Markdown 格式，不要使用加粗符号。
 如果资料中没有足够信息，请明确回答：
 “我无法从当前资料中确定答案。”
 
@@ -168,7 +188,7 @@ def generate_answer_with_newapi(query: str, top_chunks):
 请给出：
 1. 简洁回答
 2. 如果可以，补一句依据说明
-""".strip()
+""".strip().format(context=context, query=query)
 
     client = OpenAI(
         api_key=os.getenv("NEWAPI_API_KEY"),

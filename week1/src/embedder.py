@@ -1,26 +1,32 @@
-def text_to_bigrams(text: str):
+def text_to_bigrams(text):
     """
-    把文本转换成 2 字符片段集合（bigram）。
-    这里保留当前项目的简化“嵌入”方式，不改变现有行为。
+    将文本转换为二元字符片段集合。
 
-    :param text: 输入文本
-    :return: bigram 集合
+    当前项目没有接入真正的向量模型，因此用 bigram 集合作为
+    一个便于理解的“简化 embedding 表示”。
+
+    参数:
+        text: 输入文本。
+
+    返回:
+        set[str]: 文本对应的 bigram 集合。
     """
-    text = text.strip()
+    cleaned_text = text.strip()
 
-    if len(text) < 2:
-        return set(text)
+    if len(cleaned_text) < 2:
+        return set(cleaned_text)
 
     bigrams = set()
-    for i in range(len(text) - 1):
-        bigrams.add(text[i:i + 2])
+    for index in range(len(cleaned_text) - 1):
+        bigrams.add(cleaned_text[index:index + 2])
 
     return bigrams
 
 
-def embed_text(text: str):
+def embed_text(text):
     """
     返回当前项目使用的文本表示。
-    目前仍然是 bigram 集合，用于保持检索行为不变。
+
+    这里保留 bigram 方案不变，方便你继续观察“检索”这一步是如何工作的。
     """
     return text_to_bigrams(text)
