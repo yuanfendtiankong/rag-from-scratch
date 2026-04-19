@@ -197,20 +197,29 @@ def generate_answer_with_newapi(query, top_chunks):
 
     model_name = os.getenv("NEWAPI_MODEL", "gpt-5.2")
 
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {
-                "role": "system",
-                "content": "你是一个严格基于给定资料回答问题的助手。"
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.2,
-        stream=False
-    )
-
-    return response.choices[0].message.content
+    try:
+        # 这里只包住真正的接口调用阶段。
+        # 这样依赖缺失或前置配置问题仍会直接暴露出来，便于学习和排查。
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "你是一个严格基于给定资料回答问题的助手。"
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.2,
+            stream=False
+        )
+        return response.choices[0].message.content
+    except Exception as exc:
+        fallback_answer = generate_answer(query, top_chunks)
+        fallback_notice = (
+            "提示：New API 调用失败，本次已回退到本地规则版回答。\n"
+            "失败原因：{0}\n\n"
+        ).format(exc)
+        return fallback_notice + fallback_answer
