@@ -5,3 +5,5 @@ __pycache__/
 .vscode/
 .ipynb_checkpoints/
 data/faiss_index/
+week1/models/
+week1/data/processed/chunk_embeddings.json

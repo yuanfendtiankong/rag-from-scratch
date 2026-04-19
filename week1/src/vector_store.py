@@ -37,3 +37,31 @@ def load_chunks(json_path):
         list[dict]: 每一项至少包含 chunk_id 和 text 字段。
     """
     return json.loads(Path(json_path).read_text(encoding="utf-8"))
+
+
+def save_chunk_embeddings_to_json(embedding_records, output_path):
+    """
+    将 chunk 向量缓存到本地 JSON 文件。
+
+    参数:
+        embedding_records: 列表，每一项至少包含:
+            - chunk_id
+            - embedding（可 JSON 序列化的 list[float]）
+        output_path: 输出文件路径
+    """
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    output_file.write_text(
+        json.dumps(embedding_records, ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
+
+
+def load_chunk_embeddings(json_path):
+    """
+    从本地 JSON 文件读取 chunk 向量缓存。
+
+    返回:
+        list[dict]: 每一项至少包含 chunk_id 和 embedding。
+    """
+    return json.loads(Path(json_path).read_text(encoding="utf-8"))

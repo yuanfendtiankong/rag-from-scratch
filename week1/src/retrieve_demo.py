@@ -9,6 +9,6 @@ if __name__ == "__main__":
     print("\n最相关的 chunks 如下：\n")
 
     for item in top_results:
-        print("===== chunk {0} | score = {1} =====".format(item["chunk_id"], item["score"]))
+        print("===== chunk {0} | score = {1:.3f} =====".format(item["chunk_id"], item["score"]))
         print(item["text"])
         print()

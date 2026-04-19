@@ -13,6 +13,6 @@ if __name__ == "__main__":
         print("没有检索到相关 chunks。")
     else:
         for item in top_results:
-            print("chunk_id = {0} | score = {1}".format(item["chunk_id"], item["score"]))
+            print("chunk_id = {0} | score = {1:.3f}".format(item["chunk_id"], item["score"]))
             print(item["text"])
             print()

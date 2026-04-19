@@ -45,10 +45,16 @@ def select_best_sentences(query, top_chunks, max_sentences=3):
     for item in top_chunks:
         chunk_id = item["chunk_id"]
         chunk_text = item["text"]
+        chunk_score = item["score"]
         sentences = split_into_sentences(chunk_text)
 
         for sentence in sentences:
-            score = score_chunk(query, sentence)
+            sentence_score = score_chunk(query, sentence)
+
+            # 在真实 embedding 检索下，句子级语义分数有时会把一些泛化句顶上来。
+            # 这里把“句子本身的相关性”和“所属 chunk 的整体相关性”结合起来，
+            # 让最终回答更稳定地贴近 top retrieval 结果。
+            score = 0.7 * sentence_score + 0.3 * chunk_score
             candidate_sentences.append({
                 "chunk_id": chunk_id,
                 "sentence": sentence,
@@ -75,26 +81,53 @@ def generate_answer(query, top_chunks):
     if not best_sentences or best_sentences[0]["score"] == 0:
         return "回答：\n{0}".format(NO_ANSWER_TEXT)
 
+    # 主回答优先从 top1 chunk 中挑选。
+    # 这样可以让最终答案更贴近检索阶段的主结果，避免被后续 chunk 中的泛化句抢走。
+    top1_chunk_sentences = select_best_sentences(query, top_chunks[:1], max_sentences=1)
+
     answer_sentences = []
     used_sentences = set()
+
+    if top1_chunk_sentences:
+        top1_sentence = top1_chunk_sentences[0]["sentence"]
+        used_sentences.add(top1_sentence)
+        answer_sentences.append({
+            "chunk_id": top1_chunk_sentences[0]["chunk_id"],
+            "sentence": top1_sentence,
+        })
 
     for item in best_sentences:
         sentence = item["sentence"]
         if sentence not in used_sentences:
             used_sentences.add(sentence)
-            answer_sentences.append(sentence)
+            # 这里不仅保留句子内容，也保留它来自哪个 chunk。
+            # 这样后面生成“依据”时就能直接标注来源，让回答更像一个可解释的 RAG 结果。
+            answer_sentences.append({
+                "chunk_id": item["chunk_id"],
+                "sentence": sentence,
+            })
 
     if not answer_sentences:
         return "回答：\n{0}".format(NO_ANSWER_TEXT)
 
-    main_answer = answer_sentences[0]
+    main_answer = answer_sentences[0]["sentence"]
     evidence_lines = []
+    cited_chunk_ids = []
 
-    for index, sentence in enumerate(answer_sentences, start=1):
-        evidence_lines.append("{0}. {1}".format(index, sentence))
+    for index, item in enumerate(answer_sentences, start=1):
+        chunk_id = item["chunk_id"]
+        sentence = item["sentence"]
+        evidence_lines.append(
+            "{0}. [chunk {1}] {2}".format(index, chunk_id, sentence)
+        )
+        if chunk_id not in cited_chunk_ids:
+            cited_chunk_ids.append(chunk_id)
 
     evidence_text = "\n".join(evidence_lines)
-    summary = "以上回答基于当前知识库中的相关文本片段整理得到。"
+    cited_chunks_text = "、".join("chunk {0}".format(chunk_id) for chunk_id in cited_chunk_ids)
+    summary = "以上回答基于当前知识库中的相关文本片段整理得到，主要参考了 {0}。".format(
+        cited_chunks_text
+    )
 
     final_answer = (
         "回答：\n{0}\n\n"
@@ -124,7 +157,7 @@ def build_context(top_chunks):
     return "\n\n".join(context_parts)
 
 
-def should_refuse(top_chunks, min_top1_score=2, min_total_score=4):
+def should_refuse(top_chunks, min_top1_score=0.05, min_total_score=0.12):
     """
     根据检索分数判断当前资料是否足以支撑回答。
 
@@ -164,7 +197,9 @@ def generate_answer_with_newapi(query, top_chunks):
     返回:
         str: 模型生成的回答文本。
     """
-    if should_refuse(top_chunks, min_top1_score=2, min_total_score=4):
+    # 这里的阈值要和 retriever 中新的相似度分数体系保持一致。
+    # 现在 score 是 0 到 1 之间的小数，而不是之前的整数交集计数。
+    if should_refuse(top_chunks, min_top1_score=0.05, min_total_score=0.12):
         return NO_ANSWER_TEXT
 
     from dotenv import load_dotenv
