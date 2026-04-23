@@ -1,9 +1,53 @@
+# =========================
+# Python 运行缓存文件
+# =========================
+
+# Python 自动生成的缓存目录
 __pycache__/
+
+# Python 编译后的缓存文件
 *.pyc
-.env
+
+
+# =========================
+# 虚拟环境与本地环境配置
+# =========================
+
+# 本地 Python 虚拟环境，不需要提交到 GitHub
 .venv/
+
+# 本地环境变量文件，可能包含 API Key、密码等敏感信息
+.env
+
+
+# =========================
+# 编辑器 / Notebook 产生的本地文件
+# =========================
+
+# VS Code 本地工作区配置
 .vscode/
+
+# Jupyter Notebook 自动生成的检查点文件夹
 .ipynb_checkpoints/
-data/faiss_index/
-week1/models/
-week1/data/processed/chunk_embeddings.json
+
+
+# =========================
+# Codex / 本地工具辅助文件
+# =========================
+
+# 本地 Codex 辅助文件，不属于项目源码
+.codex
+
+
+# =========================
+# RAG 项目中的大文件与生成产物
+# =========================
+
+# 本地 embedding / 模型文件，体积大，不适合提交到 GitHub
+rag-project/models/
+
+# 预计算得到的向量缓存文件，属于生成产物，一般不需要提交
+rag-project/data/processed/chunk_embeddings.json
+
+# 如果你不想提交切块结果，也可以把下面这一行取消注释
+rag-project/data/processed/chunks.json
